@@ -20,6 +20,7 @@
   let lastActiveBarType = 'chat';
   let geminiKey = '';
   let autoHideTimer = null;
+  let history = []; // conversation memory (per page session)
 
   async function ensureKey() {
     if (geminiKey) return geminiKey;
@@ -56,7 +57,7 @@
       <button class="pm-btn pm-btn-close" id="pm-close">✕</button>
     </div>
     <div class="pm-response-row">
-      <div id="pm-text">Ctrl+Shift+Y to toggle · Esc to close · /key AIza... to set API key</div>
+      <div id="pm-text">Ctrl+Shift+Y to toggle · Esc to close · /clear to reset memory</div>
       <div id="pm-ghost"><div id="pm-ring"></div></div>
     </div>
   `;
@@ -138,7 +139,10 @@
     responseArea.innerHTML = `<i>Explaining: "${selectedText.slice(0, 60)}${selectedText.length > 60 ? '...' : ''}"</i>`;
     ghost.classList.add('pm-spin');
     try {
-      const res = await callGemini(key, `Explain this clearly and concisely:\n\n"${selectedText}"\n\nPage: ${document.title}`);
+      const msg = `Explain this clearly and concisely:\n\n"${selectedText}"\n\nPage: ${document.title}`;
+      history.push({ role: 'user', content: msg });
+      const res = await callGroq(key, history);
+      history.push({ role: 'assistant', content: res });
       responseArea.innerHTML = fmt(res);
     } catch (err) {
       responseArea.innerText = `⚠ ${err.message}`;
@@ -162,7 +166,7 @@
     responseArea.innerHTML = `<i>Thinking...</i>`;
 
     try {
-      let prompt;
+      // ── Commands ──
       if (text.startsWith('/key ')) {
         const newKey = text.replace('/key ', '').trim();
         await chrome.storage.sync.set({ groqKey: newKey });
@@ -171,17 +175,39 @@
         ghost.classList.remove('pm-spin');
         responseArea.innerText = '✓ API key saved.';
         return;
-      } else if (text === '/summarize' || text === '/sum') {
+      }
+
+      if (text === '/clear') {
+        history = [];
+        isLoading = false;
+        ghost.classList.remove('pm-spin');
+        responseArea.innerText = '✓ Conversation cleared.';
+        return;
+      }
+
+      let userContent;
+      if (text === '/summarize' || text === '/sum') {
         responseArea.innerHTML = `<i>Summarizing...</i>`;
-        prompt = `Summarize this page in 3-4 concise sentences:\n\n${pageContext()}`;
+        userContent = `Summarize this page in 3-4 concise sentences:\n\n${pageContext()}`;
       } else if (text.startsWith('/search ')) {
         const query = text.replace('/search ', '').trim();
         const searchRes = await chrome.runtime.sendMessage({ type: 'SEARCH_WEB', query });
-        prompt = `Search results for "${query}":\n${searchRes.data}\n\nAnswer briefly based on these results.`;
+        userContent = `Search results for "${query}":\n${searchRes.data}\n\nAnswer briefly.`;
       } else {
-        prompt = `You are a helpful assistant. The user is on "${document.title}". Use this page context only if relevant:\n${pageContext()}\n\nUser: ${text}`;
+        userContent = text;
       }
-      const reply = await callGemini(key, prompt);
+
+      // Add user message to history
+      history.push({ role: 'user', content: userContent });
+
+      const reply = await callGroq(key, history);
+
+      // Add assistant reply to history
+      history.push({ role: 'assistant', content: reply });
+
+      // Keep history to last 20 messages (10 exchanges) to avoid token limits
+      if (history.length > 20) history = history.slice(-20);
+
       responseArea.innerHTML = fmt(reply);
     } catch (err) {
       responseArea.innerHTML = `⚠ ${err.message}`;
@@ -193,7 +219,11 @@
   }
 
   // ─── Groq API (LLaMA 3.3 70B — free tier) ────────────────────────────────
-  async function callGemini(key, prompt) {
+  async function callGroq(key, messages) {
+    const systemMsg = {
+      role: 'system',
+      content: `You are a helpful assistant embedded in a browser. The user is on: "${document.title}". Page context (use only if relevant): ${pageContext()}`
+    };
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -202,7 +232,7 @@
       },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'user', content: prompt }],
+        messages: [systemMsg, ...messages],
         max_tokens: 2048,
         temperature: 0.7
       })
