@@ -23,17 +23,17 @@
 
   async function ensureKey() {
     if (geminiKey) return geminiKey;
-    const data = await chrome.storage.sync.get(['geminiKey']);
-    geminiKey = data.geminiKey || '';
+    const data = await chrome.storage.sync.get(['groqKey']);
+    geminiKey = data.groqKey || '';
     return geminiKey;
   }
 
-  chrome.storage.sync.get(['geminiKey'], (data) => {
-    geminiKey = data.geminiKey || '';
+  chrome.storage.sync.get(['groqKey'], (data) => {
+    geminiKey = data.groqKey || '';
   });
 
   chrome.storage.onChanged.addListener((changes) => {
-    if (changes.geminiKey) geminiKey = changes.geminiKey.newValue;
+    if (changes.groqKey) geminiKey = changes.groqKey.newValue;
   });
 
   // ─── Theme Detection ──────────────────────────────────────────────────────
@@ -165,7 +165,7 @@
       let prompt;
       if (text.startsWith('/key ')) {
         const newKey = text.replace('/key ', '').trim();
-        await chrome.storage.sync.set({ geminiKey: newKey });
+        await chrome.storage.sync.set({ groqKey: newKey });
         geminiKey = newKey;
         isLoading = false;
         ghost.classList.remove('pm-spin');
@@ -192,22 +192,24 @@
     }
   }
 
-  // ─── Gemini API ───────────────────────────────────────────────────────────
+  // ─── Groq API (LLaMA 3.3 70B — free tier) ────────────────────────────────
   async function callGemini(key, prompt) {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
-        })
-      }
-    );
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key}`
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 2048,
+        temperature: 0.7
+      })
+    });
     const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response.';
+    if (data.error) throw new Error(data.error.error || data.error.message || 'Groq error');
+    return data.choices?.[0]?.message?.content || 'No response.';
   }
 
   function pageContext() {
