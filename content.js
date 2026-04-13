@@ -1,21 +1,23 @@
 (() => {
-  if (document.getElementById('pagemind-root')) return;
+  if (document.getElementById('_rt_host')) return;
 
-  // ─── Root ──────────────────────────────────────────────────────────────────
-  const root = document.createElement('div');
-  root.id = 'pagemind-root';
-  document.body.appendChild(root);
+  // ─── Shadow DOM (closed) — invisible to page scripts & proctoring scanners ─
+  const hostEl = document.createElement('div');
+  hostEl.id = '_rt_host';
+  document.documentElement.appendChild(hostEl);
+  const shadow = hostEl.attachShadow({ mode: 'closed' });
 
-  // ─── State & Settings ──────────────────────────────────────────────────────
+  const styleLink = document.createElement('link');
+  styleLink.rel = 'stylesheet';
+  styleLink.href = chrome.runtime.getURL('content.css');
+  shadow.appendChild(styleLink);
+
+  // ─── State ────────────────────────────────────────────────────────────────
   let isLoading = false;
   let isListening = false;
-  let isDragged = false;
-  let orbHoldTimer = null;
   let recognition = null;
-  let clickCount = 0;
-  let clickTimer = null;
-  let activeBarType = null; 
-  let lastActiveBarType = 'chat'; 
+  let activeBarType = null;
+  let lastActiveBarType = 'chat';
   let geminiKey = '';
   let autoHideTimer = null;
 
@@ -27,99 +29,102 @@
   }
 
   chrome.storage.sync.get(['geminiKey'], (data) => {
-    geminiKey = data.geminiKey || FALLBACK_KEY;
-    if (!data.geminiKey) chrome.storage.sync.set({ geminiKey: FALLBACK_KEY });
+    geminiKey = data.geminiKey || '';
   });
 
   chrome.storage.onChanged.addListener((changes) => {
     if (changes.geminiKey) geminiKey = changes.geminiKey.newValue;
   });
 
-  // ─── 🌗 Dark/Light Adaptive Detection ──────────────────────────────────────
-  function detectPageTheme() {
+  // ─── Theme Detection ──────────────────────────────────────────────────────
+  function applyTheme() {
     const bg = window.getComputedStyle(document.body).backgroundColor;
     const match = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-    if (!match) return 'dark'; // default to dark
+    if (!match) return;
     const brightness = (parseInt(match[1]) * 299 + parseInt(match[2]) * 587 + parseInt(match[3]) * 114) / 1000;
-    return brightness > 128 ? 'light' : 'dark';
+    panel.setAttribute('data-pm-theme', brightness > 128 ? 'light' : 'dark');
   }
 
-  function applyTheme() {
-    const theme = detectPageTheme();
-    root.setAttribute('data-pm-theme', theme);
-  }
-
-  // Apply on load and watch for dynamic changes
-  setTimeout(applyTheme, 500);
-  new MutationObserver(applyTheme).observe(document.body, { attributes: true, attributeFilter: ['style', 'class'] });
-
-  // ─── UI Elements ───────────────────────────────────────────────────────────
-  const orb = document.createElement('div');
-  orb.id = 'pagemind-orb';
-  orb.title = 'PageMind AI';
-  root.appendChild(orb);
-
+  // ─── UI Panel ─────────────────────────────────────────────────────────────
   const panel = document.createElement('div');
-  panel.id = 'pagemind-panel';
-  panel.className = 'pm-stacked-bar';
+  panel.className = 'pm-bar';
   panel.innerHTML = `
     <div class="pm-top-row">
-      <textarea id="pagemind-input" placeholder="Ask me anything..." rows="1"></textarea>
-      <button class="pm-action-btn" id="pagemind-mic" title="Voice">🎙</button>
-      <button class="pm-action-btn" id="pagemind-send">➤</button>
-      <button class="pm-action-btn" id="pagemind-close">✕</button>
+      <textarea id="pm-input" placeholder="Ask anything... (/summarize, /search query)" rows="1"></textarea>
+      <button class="pm-btn" id="pm-mic" title="Voice">🎙</button>
+      <button class="pm-btn" id="pm-send">➤</button>
+      <button class="pm-btn pm-btn-close" id="pm-close">✕</button>
     </div>
-    <div id="pagemind-response" class="pm-response-row">
-      <div id="pm-response-text">3-click for summary · 4-click to chat · Select text + click to explain</div>
-      <div id="pagemind-ghost"><div id="pm-ghost-ring"></div></div>
+    <div class="pm-response-row">
+      <div id="pm-text">Ctrl+Shift+Y to toggle · Esc to close · Select text + shortcut to explain</div>
+      <div id="pm-ghost"><div id="pm-ring"></div></div>
     </div>
   `;
-  root.appendChild(panel);
+  shadow.appendChild(panel);
 
-  const inputArea = panel.querySelector('#pagemind-input');
-  const responseArea = panel.querySelector('#pm-response-text');
-  const ghost = panel.querySelector('#pagemind-ghost');
+  const inputArea = panel.querySelector('#pm-input');
+  const responseArea = panel.querySelector('#pm-text');
+  const ghost = panel.querySelector('#pm-ghost');
 
-  // ─── ⏱ Auto-Hide Timer (30s inactivity) ────────────────────────────────────
+  setTimeout(applyTheme, 300);
+  new MutationObserver(applyTheme).observe(document.body, { attributes: true, attributeFilter: ['style', 'class'] });
+
+  // ─── Auto-Hide (60s inactivity) ───────────────────────────────────────────
   function resetAutoHide() {
     if (autoHideTimer) clearTimeout(autoHideTimer);
-    if (activeBarType) {
-      autoHideTimer = setTimeout(() => {
-        hidePanel();
-      }, 30000); // 30 seconds
-    }
+    if (activeBarType) autoHideTimer = setTimeout(hidePanel, 60000);
   }
 
-  // Reset timer on any interaction inside the panel
   panel.addEventListener('mousemove', resetAutoHide);
   panel.addEventListener('click', resetAutoHide);
   panel.addEventListener('keydown', resetAutoHide);
 
-  // ─── Actions ───────────────────────────────────────────────────────────────
+  // ─── Show / Hide ──────────────────────────────────────────────────────────
   function showPanel(type) {
     activeBarType = type;
     lastActiveBarType = type;
-    panel.classList.add('pm-bar-visible');
-    
+    panel.classList.add('pm-visible');
     if (type === 'chat') {
-      inputArea.placeholder = "Ask me anything...";
+      inputArea.placeholder = "Ask anything... (/summarize, /search query)";
       inputArea.focus();
     } else if (type === 'explain') {
       inputArea.placeholder = "Explaining selection...";
-    } else {
-      inputArea.placeholder = "Summarizing page...";
     }
     resetAutoHide();
   }
 
   function hidePanel() {
-    panel.classList.remove('pm-bar-visible');
+    panel.classList.remove('pm-visible');
     activeBarType = null;
     stopListening();
     if (autoHideTimer) clearTimeout(autoHideTimer);
   }
 
-  // ─── 📝 Explain Selection ──────────────────────────────────────────────────
+  // ─── Keyboard Shortcuts ───────────────────────────────────────────────────
+  // Use capture phase so it fires before the page can intercept
+  document.addEventListener('keydown', (e) => {
+    // Ctrl+Shift+Y — toggle
+    if (e.ctrlKey && e.shiftKey && e.key === 'Y') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (activeBarType) {
+        hidePanel();
+      } else {
+        const sel = getSelectedText();
+        sel.length > 2 ? explainSelection(sel) : showPanel(lastActiveBarType || 'chat');
+      }
+      return;
+    }
+    // Escape — instant panic hide
+    if (e.key === 'Escape' && activeBarType) {
+      hidePanel();
+    }
+  }, true);
+
+  // ─── Auto-hide on window blur (Alt+Tab, screen share focus check, etc.) ───
+  window.addEventListener('blur', hidePanel);
+
+  // ─── Explain Selection ────────────────────────────────────────────────────
   function getSelectedText() {
     return window.getSelection().toString().trim();
   }
@@ -127,164 +132,120 @@
   async function explainSelection(selectedText) {
     if (isLoading || !selectedText) return;
     const key = await ensureKey();
+    if (!key) { showPanel('chat'); responseArea.innerText = '⚠ No API key — open extension settings.'; return; }
     isLoading = true;
     showPanel('explain');
     responseArea.innerHTML = `<i>Explaining: "${selectedText.slice(0, 60)}${selectedText.length > 60 ? '...' : ''}"</i>`;
-    ghost.classList.add('pm-ghost-active');
-
+    ghost.classList.add('pm-spin');
     try {
-      const prompt = `The user highlighted the following text on a webpage and wants a clear, concise explanation:\n\n"${selectedText}"\n\nPage title: ${document.title}\n\nProvide a helpful explanation. Be concise but thorough.`;
-      const res = await callGemini(key, prompt);
-      responseArea.innerHTML = res.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+      const res = await callGemini(key, `Explain this clearly and concisely:\n\n"${selectedText}"\n\nPage: ${document.title}`);
+      responseArea.innerHTML = fmt(res);
     } catch (err) {
-      responseArea.innerText = `⚠️ ${err.message}`;
+      responseArea.innerText = `⚠ ${err.message}`;
     } finally {
       isLoading = false;
-      ghost.classList.remove('pm-ghost-active');
+      ghost.classList.remove('pm-spin');
       resetAutoHide();
     }
   }
 
-  // ─── Orb Interactions ──────────────────────────────────────────────────────
-  orb.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return;
-    isDragged = false; dragStart(e);
-    orbHoldTimer = setTimeout(() => { if (!isDragged) { showPanel('chat'); startListening(); } }, 400);
-  });
-
-  orb.addEventListener('click', () => {
-    if (isDragged) return;
-
-    // 📝 Check for selected text FIRST — if text is highlighted, explain it immediately
-    const selected = getSelectedText();
-    if (selected && selected.length > 2) {
-      explainSelection(selected);
-      return; // Skip click counting
-    }
-
-    clickCount++;
-    if (clickTimer) clearTimeout(clickTimer);
-    clickTimer = setTimeout(async () => {
-      if (clickCount === 1) activeBarType ? hidePanel() : showPanel(lastActiveBarType);
-      else if (clickCount === 2) showPanel(lastActiveBarType);
-      else if (clickCount === 3) await triggerSummary();
-      else if (clickCount === 4) showPanel('chat');
-      clickCount = 0;
-    }, 350);
-  });
-
-  panel.querySelector('#pagemind-close').addEventListener('click', hidePanel);
-
-  // ─── Logic ─────────────────────────────────────────────────────────────────
-  async function triggerSummary() {
-    if (isLoading) return;
-    const key = await ensureKey();
-    isLoading = true;
-    showPanel('summary');
-    responseArea.innerHTML = '<i>Reading and summarizing...</i>';
-    ghost.classList.add('pm-ghost-active');
-
-    try {
-      const prompt = `Provide a concise 3-4 line summary of this page content:\n\n${getPageContext()}`;
-      const res = await callGemini(key, prompt);
-      responseArea.innerHTML = res.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
-    } catch (err) {
-      responseArea.innerText = `⚠️ ${err.message}`;
-    } finally {
-      isLoading = false;
-      ghost.classList.remove('pm-ghost-active');
-      resetAutoHide();
-    }
-  }
-
+  // ─── Send Message ─────────────────────────────────────────────────────────
   async function sendMessage() {
     const text = inputArea.value.trim();
     if (!text || isLoading) return;
     const key = await ensureKey();
-    
+    if (!key) { responseArea.innerText = '⚠ No API key — open extension settings.'; return; }
+
     inputArea.value = '';
-    responseArea.innerHTML = `<b>You:</b> ${text}<br><br><i>Thinking...</i>`;
     isLoading = true;
-    ghost.classList.add('pm-ghost-active');
+    ghost.classList.add('pm-spin');
+    responseArea.innerHTML = `<i>Thinking...</i>`;
 
     try {
-      let contextPrefix = "";
-      if (text.startsWith('/search ')) {
+      let prompt;
+      if (text === '/summarize' || text === '/sum') {
+        responseArea.innerHTML = `<i>Summarizing...</i>`;
+        prompt = `Summarize this page in 3-4 concise sentences:\n\n${pageContext()}`;
+      } else if (text.startsWith('/search ')) {
         const query = text.replace('/search ', '').trim();
         const searchRes = await chrome.runtime.sendMessage({ type: 'SEARCH_WEB', query });
-        contextPrefix = `Search results for "${query}":\n${searchRes.data}\n\n`;
+        prompt = `Search results for "${query}":\n${searchRes.data}\n\nAnswer briefly based on these results.`;
+      } else {
+        prompt = `You are a helpful assistant. The user is on "${document.title}". Use this page context only if relevant:\n${pageContext()}\n\nUser: ${text}`;
       }
-      const prompt = `You are PageMind, a helpful AI assistant. You can answer ANY question on any topic using your general knowledge. The user is currently browsing a webpage — here is some context from it in case it's relevant (but don't limit yourself to it):\n${getPageContext()}\n\n${contextPrefix}User Question: ${text}`;
       const reply = await callGemini(key, prompt);
-      responseArea.innerHTML = reply.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+      responseArea.innerHTML = fmt(reply);
     } catch (err) {
-      responseArea.innerHTML = `⚠️ ${err.message}`;
+      responseArea.innerHTML = `⚠ ${err.message}`;
     } finally {
       isLoading = false;
-      ghost.classList.remove('pm-ghost-active');
+      ghost.classList.remove('pm-spin');
       resetAutoHide();
     }
   }
 
+  // ─── Gemini API ───────────────────────────────────────────────────────────
   async function callGemini(key, prompt) {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${key}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
-      })
-    });
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
+        })
+      }
+    );
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
     return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response.';
   }
 
-  function getPageContext() {
-    return `Title: ${document.title}\nContent: ${document.body.innerText.slice(0, 4500)}`;
+  function pageContext() {
+    return `Title: ${document.title}\n${document.body.innerText.slice(0, 4500)}`;
   }
 
-  panel.querySelector('#pagemind-send').addEventListener('click', sendMessage);
-  inputArea.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+  function fmt(text) {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+  }
 
-  // ─── Voice ─────────────────────────────────────────────────────────────────
+  // ─── Panel Events ─────────────────────────────────────────────────────────
+  panel.querySelector('#pm-close').addEventListener('click', hidePanel);
+  panel.querySelector('#pm-send').addEventListener('click', sendMessage);
+  inputArea.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+
+  // ─── Voice ────────────────────────────────────────────────────────────────
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const micBtn = panel.querySelector('#pagemind-mic');
+  const micBtn = panel.querySelector('#pm-mic');
   if (SpeechRecognition) {
     recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = true;
-    recognition.onstart = () => { isListening = true; micBtn.classList.add('pm-mic-active'); };
+    recognition.onstart = () => { isListening = true; micBtn.classList.add('pm-mic-on'); };
     recognition.onresult = (e) => {
-      const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
-      inputArea.value = transcript;
+      const t = Array.from(e.results).map(r => r[0].transcript).join('');
+      inputArea.value = t;
       if (e.results[e.results.length - 1].isFinal) { stopListening(); sendMessage(); }
     };
     recognition.onerror = () => stopListening();
     recognition.onend = () => stopListening();
     micBtn.addEventListener('click', () => isListening ? stopListening() : startListening());
-  } else { micBtn.style.display = 'none'; }
-  function startListening() { if (recognition && !isListening) try { recognition.start(); } catch(e){} }
-  function stopListening() { if (recognition && isListening) { isListening = false; micBtn.classList.remove('pm-mic-active'); try { recognition.stop(); } catch(e){} } }
-
-  // ─── Draggable ORB ─────────────────────────────────────────────────────────
-  let dragging = false; let dX = 0, dY = 0;
-  function dragStart(e) {
-    dragging = true;
-    dX = e.clientX - orb.getBoundingClientRect().left;
-    dY = e.clientY - orb.getBoundingClientRect().top;
-    orb.style.transition = 'none';
+  } else {
+    micBtn.style.display = 'none';
   }
-  document.addEventListener('mousemove', (e) => {
-    if (!dragging) return;
-    isDragged = true;
-    orb.style.right = 'auto'; orb.style.bottom = 'auto';
-    orb.style.left = (e.clientX - dX) + 'px';
-    orb.style.top = (e.clientY - dY) + 'px';
-  });
-  document.addEventListener('mouseup', () => { 
-    dragging = false; orb.style.transition = '';
-    setTimeout(() => isDragged = false, 100);
-  });
+
+  function startListening() { if (recognition && !isListening) try { recognition.start(); } catch(e){} }
+  function stopListening() {
+    if (recognition && isListening) {
+      isListening = false;
+      micBtn.classList.remove('pm-mic-on');
+      try { recognition.stop(); } catch(e){}
+    }
+  }
 
 })();

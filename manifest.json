@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "PageMind — AI Page Assistant",
-  "version": "2.0",
-  "description": "Liquid-glass AI assistant that reads pages, searches the web, and answers your questions.",
+  "name": "Reading Tools",
+  "version": "2.1",
+  "description": "Highlight text for instant reading assistance while you browse.",
   "permissions": [
     "storage",
     "activeTab",
@@ -24,16 +24,25 @@
       "js": [
         "content.js"
       ],
-      "css": [
-        "content.css"
+      "web_accessible_resources": [
+        {
+          "resources": ["content.css"],
+          "matches": ["<all_urls>"]
+        }
       ],
       "run_at": "document_end"
     }
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "PageMind Settings"
+    "default_title": "Reading Tools"
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["content.css"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "icons": {
     "48": "icon.png",
     "128": "icon.png"
