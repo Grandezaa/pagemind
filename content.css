@@ -1,0 +1,208 @@
+/* ── PageMind v4.0 - Stealth Adaptive UI ───────────────────────────────── */
+#pagemind-root * {
+  box-sizing: border-box;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  margin: 0; padding: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ORB - Tiny Ghost Circle (adapts to theme)
+══════════════════════════════════════════════════════════════════════════════ */
+#pagemind-orb {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(128, 128, 128, 0.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(128, 128, 128, 0.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  cursor: pointer;
+  z-index: 2147483646;
+  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+  user-select: none;
+}
+
+#pagemind-orb:hover {
+  background: rgba(128, 128, 128, 0.15);
+  transform: scale(1.1);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   🌗 DARK THEME (Default) - for dark pages
+══════════════════════════════════════════════════════════════════════════════ */
+.pm-stacked-bar {
+  position: fixed;
+  bottom: 60px;
+  right: 20px;
+  width: 420px;
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 100px);
+  background: rgba(10, 8, 25, 0.18);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  z-index: 2147483645;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+  transform: translateY(20px) scale(0.95);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pm-bar-visible {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ☀️ LIGHT THEME - for light/white pages
+══════════════════════════════════════════════════════════════════════════════ */
+[data-pm-theme="light"] #pagemind-orb {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+[data-pm-theme="light"] #pagemind-orb:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+[data-pm-theme="light"] .pm-stacked-bar {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+}
+
+[data-pm-theme="light"] #pagemind-input {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #1a1a2e;
+}
+
+[data-pm-theme="light"] .pm-response-row {
+  color: rgba(0, 0, 0, 0.8);
+}
+[data-pm-theme="light"] .pm-response-row strong {
+  color: rgba(91, 33, 182, 0.9);
+}
+
+[data-pm-theme="light"] .pm-action-btn {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #333;
+}
+[data-pm-theme="light"] .pm-action-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+[data-pm-theme="light"] .pm-top-row {
+  border-bottom-color: rgba(0, 0, 0, 0.04);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   INPUT ROW
+══════════════════════════════════════════════════════════════════════════════ */
+.pm-top-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+#pagemind-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: #fff;
+  padding: 8px 12px;
+  resize: none;
+  outline: none;
+  font-size: 13px;
+  height: 36px;
+  line-height: 1.4;
+  font-family: inherit;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   RESPONSE AREA (scrollable, full text)
+══════════════════════════════════════════════════════════════════════════════ */
+.pm-response-row {
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 14px 16px;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.88);
+  background: transparent;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+  position: relative;
+}
+
+.pm-response-row::-webkit-scrollbar { width: 3px; }
+.pm-response-row::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.15); border-radius: 3px; }
+
+.pm-response-row strong { color: rgba(196, 181, 253, 0.9); }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   BUTTONS
+══════════════════════════════════════════════════════════════════════════════ */
+.pm-action-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.pm-action-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+#pagemind-close {
+  background: rgba(239, 68, 68, 0.05);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   GHOST SPINNER
+══════════════════════════════════════════════════════════════════════════════ */
+#pagemind-ghost {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.pm-ghost-active { opacity: 1 !important; }
+
+#pm-ghost-ring {
+  width: 18px; height: 18px;
+  border: 2px solid rgba(128, 128, 128, 0.15);
+  border-top-color: rgba(167, 139, 250, 0.7);
+  border-radius: 50%;
+  animation: pm-spin 1s linear infinite;
+}
+
+@keyframes pm-spin { to { transform: rotate(360deg); } }

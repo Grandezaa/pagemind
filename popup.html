@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PageMind Settings</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 330px;
+      background: #0a0819;
+      color: #e9d5ff;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      padding: 0;
+    }
+
+    .header {
+      background:
+        radial-gradient(ellipse at 30% 0%, rgba(124, 58, 237, 0.15), transparent 60%),
+        rgba(255, 255, 255, 0.02);
+      padding: 22px 20px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-icon {
+      width: 40px;
+      height: 40px;
+      background:
+        radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.2), transparent 50%),
+        rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow:
+        0 4px 16px rgba(0, 0, 0, 0.15),
+        inset 0 1px 2px rgba(255, 255, 255, 0.2);
+    }
+
+    .header-text h1 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #ede9fe;
+      letter-spacing: 0.02em;
+    }
+
+    .header-text p {
+      font-size: 10.5px;
+      color: rgba(196, 181, 253, 0.4);
+      margin-top: 2px;
+    }
+
+    .body {
+      padding: 20px;
+    }
+
+    .section-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(167, 139, 250, 0.4);
+      margin-bottom: 10px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      color: rgba(196, 181, 253, 0.7);
+      margin-bottom: 6px;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      color: #e9d5ff;
+      font-size: 12.5px;
+      padding: 10px 12px;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+    }
+
+    input:focus {
+      border-color: rgba(167, 139, 250, 0.4);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .hint {
+      font-size: 10.5px;
+      color: rgba(167, 139, 250, 0.35);
+      margin-top: 7px;
+      line-height: 1.5;
+    }
+
+    .hint a {
+      color: rgba(167, 139, 250, 0.6);
+      text-decoration: underline;
+    }
+
+    .btn {
+      width: 100%;
+      margin-top: 16px;
+      background:
+        radial-gradient(circle at 40% 40%, rgba(255, 255, 255, 0.1), transparent 50%),
+        linear-gradient(135deg, rgba(124, 58, 237, 0.5), rgba(91, 33, 182, 0.5));
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(167, 139, 250, 0.2);
+      border-radius: 10px;
+      color: #ede9fe;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 11px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s, box-shadow 0.15s;
+      letter-spacing: 0.02em;
+      box-shadow: 0 4px 16px rgba(124, 58, 237, 0.2);
+    }
+
+    .btn:hover {
+      opacity: 0.92;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 24px rgba(124, 58, 237, 0.3);
+    }
+
+    .status {
+      margin-top: 12px;
+      padding: 9px 12px;
+      border-radius: 9px;
+      font-size: 12px;
+      display: none;
+    }
+
+    .status.success {
+      background: rgba(52, 211, 153, 0.08);
+      border: 1px solid rgba(52, 211, 153, 0.2);
+      color: #6ee7b7;
+      display: block;
+    }
+
+    .status.error {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+      display: block;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      margin: 18px 0;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .toggle-row label {
+      margin: 0;
+      font-size: 12px;
+      color: rgba(196, 181, 253, 0.6);
+    }
+
+    .toggle {
+      position: relative;
+      width: 36px;
+      height: 20px;
+    }
+
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .slider::before {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      left: 2px;
+      top: 2px;
+      background: rgba(196, 181, 253, 0.5);
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+
+    .toggle input:checked+.slider {
+      background: rgba(124, 58, 237, 0.3);
+      border-color: rgba(167, 139, 250, 0.3);
+    }
+
+    .toggle input:checked+.slider::before {
+      transform: translateX(16px);
+      background: #c4b5fd;
+    }
+
+    .commands-hint {
+      margin-top: 8px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 8px;
+      font-size: 10.5px;
+      color: rgba(167, 139, 250, 0.35);
+      line-height: 1.7;
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+    }
+
+    .commands-hint strong {
+      color: rgba(167, 139, 250, 0.5);
+      font-weight: 600;
+    }
+
+    .footer {
+      padding: 12px 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      font-size: 10px;
+      color: rgba(167, 139, 250, 0.2);
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <div class="header-icon">✦</div>
+    <div class="header-text">
+      <h1>PageMind</h1>
+      <p>Liquid Glass AI Assistant · v2.0</p>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="section-title">Gemini API Key</div>
+    <label for="apiKey">Your free API key</label>
+    <input type="password" id="apiKey" placeholder="AIza..." autocomplete="off" />
+    <p class="hint">
+      Get your free key at
+      <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com</a>.
+      No credit card required.
+    </p>
+
+    <hr class="divider">
+
+    <div class="section-title">Preferences</div>
+    <div class="toggle-row">
+      <label>Show on all pages</label>
+      <label class="toggle">
+        <input type="checkbox" id="showAll" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="toggle-row" style="margin-top:10px">
+      <label>🔊 Speak replies aloud</label>
+      <label class="toggle">
+        <input type="checkbox" id="voiceReply">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <hr class="divider">
+
+    <div class="section-title">Commands</div>
+    <div class="commands-hint">
+      <strong>/search</strong> [query] — search the web<br>
+      <strong>/browse</strong> [url] — read any page<br>
+      <strong>/page</strong> — back to current page<br>
+      <strong>/help</strong> — show all commands
+    </div>
+
+    <button class="btn" id="saveBtn">Save Settings</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="footer">PageMind v3.0 · Powered by Gemini 3 Flash Preview</div>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>
