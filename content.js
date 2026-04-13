@@ -56,7 +56,7 @@
       <button class="pm-btn pm-btn-close" id="pm-close">✕</button>
     </div>
     <div class="pm-response-row">
-      <div id="pm-text">Ctrl+Shift+Y to toggle · Esc to close · Select text + shortcut to explain</div>
+      <div id="pm-text">Ctrl+Shift+Y to toggle · Esc to close · /key AIza... to set API key</div>
       <div id="pm-ghost"><div id="pm-ring"></div></div>
     </div>
   `;
@@ -163,7 +163,15 @@
 
     try {
       let prompt;
-      if (text === '/summarize' || text === '/sum') {
+      if (text.startsWith('/key ')) {
+        const newKey = text.replace('/key ', '').trim();
+        await chrome.storage.sync.set({ geminiKey: newKey });
+        geminiKey = newKey;
+        isLoading = false;
+        ghost.classList.remove('pm-spin');
+        responseArea.innerText = '✓ API key saved.';
+        return;
+      } else if (text === '/summarize' || text === '/sum') {
         responseArea.innerHTML = `<i>Summarizing...</i>`;
         prompt = `Summarize this page in 3-4 concise sentences:\n\n${pageContext()}`;
       } else if (text.startsWith('/search ')) {
@@ -187,7 +195,7 @@
   // ─── Gemini API ───────────────────────────────────────────────────────────
   async function callGemini(key, prompt) {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
